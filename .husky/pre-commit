@@ -1,0 +1,27 @@
+#!/bin/sh
+
+# Carrega a variável do .env manualmente
+PHP=$(grep PHP_HERD_PATH .env | cut -d '=' -f2 | tr -d '"')
+
+# Fallback se a variável estiver vazia
+if [ -z "$PHP" ]; then
+  echo "Caminho do PHP não encontrado. Defina PHP_HERD_PATH no .env"
+  exit 1
+fi
+
+$PHP ./vendor/bin/phpstan
+
+if [ $? -ne 0 ]; then
+    echo "Ops! O PHPStan detectou alguns problemas no código. Resolva antes de seguir com o commit."
+    exit 1
+fi
+
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep ".php\{0,1\}$") || true
+
+for FILE in $STAGED_FILES
+do
+    $PHP ./vendor/bin/pint "${FILE}" > /dev/null >&1
+    git add "${FILE}"
+done
+
+exit 0
